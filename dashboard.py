@@ -50,14 +50,14 @@ async def root(request: Request):
 async def login_page(request: Request):
     if is_logged_in(request):
         return RedirectResponse(url="/admin", status_code=302)
-    return templates.TemplateResponse("admin_login.html", {"request": request, "error": None})
+    return templates.TemplateResponse(request, "admin_login.html", {"request": request, "error": None})
 
 @app.post("/admin/login", response_class=HTMLResponse)
 async def login_submit(request: Request, password: str = Form(...)):
     if password == ADMIN_PASSWORD:
         request.session["admin_auth"] = True
         return RedirectResponse(url="/admin", status_code=302)
-    return templates.TemplateResponse("admin_login.html", {"request": request, "error": "Wrong password"})
+    return templates.TemplateResponse(request, "admin_login.html", {"request": request, "error": "Wrong password"})
 
 @app.get("/admin/logout")
 async def logout(request: Request):
@@ -129,7 +129,7 @@ async def admin_dashboard(request: Request, page: int = Query(1, ge=1), search: 
         logs = db.get_recent_logs(20) if hasattr(db, "get_recent_logs") else []
     except:
         users, groups, stats, logs = {}, {}, {}, []
-    return templates.TemplateResponse("admin.html", {
+    return templates.TemplateResponse(request, "admin.html", {
         "request": request,
         "whispers": whispers,
         "page": page,
