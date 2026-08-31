@@ -8,7 +8,7 @@ from data.config import ADMINS
 async def on_startup_notify(dp: Dispatcher):
     for admin in ADMINS:
         try:
-            await dp.bot.send_message(admin, "Bot ishga tushdi")
+            await dp.bot.send_message(admin, "✅ WSPBDBot is online")
 
         except Exception as err:
-            print(f"Admin topilmadi: {admin}")
+            print(f"Admin not found: {admin}")

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>WSPBDBot - Admin Login</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body{font-family:Inter,system-ui,Arial;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+    .card{background:#1e293b;padding:32px;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.4);width:360px}
+    h1{margin:0 0 8px;font-size:22px}
+    p{color:#94a3b8;font-size:13px;margin:0 0 20px}
+    input{width:100%;padding:12px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:#fff;box-sizing:border-box}
+    button{width:100%;margin-top:16px;padding:12px;border:0;border-radius:10px;background:#38bdf8;color:#0f172a;font-weight:700;cursor:pointer}
+    .err{background:#fecaca;color:#7f1d1d;padding:10px;border-radius:8px;margin-bottom:12px;font-size:13px}
+    a{color:#38bdf8;text-decoration:none;font-size:12px}
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>🔒 WSPBDBot Admin</h1>
+  <p>Enter ADMIN_PASSWORD from .env to view whispers</p>
+  {% if error %}<div class="err">{{error}}</div>{% endif %}
+  <form method="post" action="/admin/login">
+    <input type="password" name="password" placeholder="ADMIN_PASSWORD" required autofocus>
+    <button type="submit">Login</button>
+  </form>
+  <p style="margin-top:16px;text-align:center"><a href="/">← Back</a></p>
+</div>
+</body>
+</html>

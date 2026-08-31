@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>WSPBDBot Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Arial;background:#0f172a;color:#e2e8f0}
+    header{background:#1e293b;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
+    header h1{margin:0;font-size:18px} header a{color:#38bdf8;text-decoration:none;font-size:13px;margin-left:12px}
+    .wrap{max-width:1100px;margin:0 auto;padding:20px}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+    .stat{background:#1e293b;padding:14px;border-radius:12px} .stat b{font-size:20px} .stat span{color:#94a3b8;font-size:12px;display:block}
+    .toolbar{display:flex;gap:8px;margin-bottom:12px} input,select{padding:10px;border-radius:10px;border:1px solid #334155;background:#1e293b;color:#fff}
+    input{flex:1} button{padding:10px 14px;border-radius:10px;border:0;background:#38bdf8;color:#0f172a;font-weight:700;cursor:pointer}
+    table{width:100%;border-collapse:collapse;background:#1e293b;border-radius:12px;overflow:hidden} th,td{padding:10px 12px;text-align:left;font-size:13px;border-bottom:1px solid #334155} th{background:#0f172a;color:#94a3b8;font-size:11px;text-transform:uppercase}
+    td{vertical-align:top} .pill{background:#334155;padding:3px 8px;border-radius:999px;font-size:11px;display:inline-block;margin:2px 2px 0 0}
+    .secret{max-width:280px;word-break:break-word;color:#f8fafc} .muted{color:#94a3b8;font-size:12px}
+    .actions{display:flex;gap:6px} .btn{padding:6px 10px;border-radius:8px;border:0;cursor:pointer;font-size:12px} .btn-view{background:#38bdf8;color:#0f172a} .btn-del{background:#ef4444;color:#fff}
+    .pager{display:flex;gap:8px;justify-content:center;margin-top:16px} .pager a, .pager span{padding:8px 12px;background:#1e293b;border-radius:8px;color:#e2e8f0;text-decoration:none;font-size:13px}
+    .pager .active{background:#38bdf8;color:#0f172a}
+    dialog{border:0;border-radius:12px;background:#1e293b;color:#e2e8f0;padding:20px;max-width:600px;width:90%} dialog::backdrop{background:rgba(0,0,0,.6)}
+    dialog pre{white-space:pre-wrap;word-break:break-word;background:#0f172a;padding:12px;border-radius:8px}
+  </style>
+</head>
+<body>
+<header>
+  <h1>💌 WSPBDBot Dashboard</h1>
+  <div>
+    <span class="muted">Admins: {{ admins|join(', ') }}</span>
+    <a href="/admin/logout">Logout</a>
+  </div>
+</header>
+<div class="wrap">
+  <div class="stats">
+    <div class="stat"><span>Total Whispers</span><b>{{ total }}</b></div>
+    <div class="stat"><span>Group-manager Users</span><b>{{ users|length if users is mapping else users|length }}</b> <span style="font-size:10px">{{ stats.total_users|default('') }} total</span></div>
+    <div class="stat"><span>Groups</span><b>{{ groups|length if groups is mapping else groups|length }}</b> <span style="font-size:10px">from manager.db</span></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <a href="/admin?tab=whispers" style="padding:8px 14px;border-radius:8px;background:{% if tab=='whispers' %}#38bdf8;color:#0f172a{% else %}#1e293b;color:#e2e8f0{% endif %};text-decoration:none;font-size:13px;font-weight:600">💌 Whispers ({{ total }})</a>
+    <a href="/admin?tab=users" style="padding:8px 14px;border-radius:8px;background:{% if tab=='users' %}#38bdf8;color:#0f172a{% else %}#1e293b;color:#e2e8f0{% endif %};text-decoration:none;font-size:13px">👥 Users ({{ users|length }})</a>
+    <a href="/admin?tab=groups" style="padding:8px 14px;border-radius:8px;background:{% if tab=='groups' %}#38bdf8;color:#0f172a{% else %}#1e293b;color:#e2e8f0{% endif %};text-decoration:none;font-size:13px">👥 Groups ({{ groups|length }})</a>
+  </div>
+
+  {% if tab=='whispers' %}
+  <form class="toolbar" method="get" action="/admin">
+    <input type="hidden" name="tab" value="whispers">
+    <input type="text" name="search" placeholder="Search target, secret, sender @username or ID..." value="{{ search }}">
+    <select name="limit"><option value="20" {% if limit==20 %}selected{% endif %}>20 / page</option><option value="50" {% if limit==50 %}selected{% endif %}>50</option><option value="100" {% if limit==100 %}selected{% endif %}>100</option></select>
+    <button type="submit">Search</button>
+    {% if search %}<a href="/admin?tab=whispers"><button type="button" style="background:#475569;color:#fff">Clear</button></a>{% endif %}
+  </form>
+
+  <table>
+    <thead><tr><th>#</th><th>Time</th><th>From → To</th><th>Secret</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for w in whispers %}
+      <tr>
+        <td class="muted" style="font-size:11px">{{ w.message_id[:8] }}...</td>
+        <td class="muted" style="white-space:nowrap">{{ w.created_at }}</td>
+        <td>
+          <div style="font-weight:600">{{ w.sender_name }}</div>
+          <div class="muted">@{{ w.sender_username or 'no_username' }} ({{ w.sender_id }})</div>
+          <div style="margin-top:6px"><span class="muted" style="font-size:11px">→</span>
+            {% for t in w.targets.split(',') if t.strip() %}
+              <span class="pill">@{{ t }}</span>
+            {% endfor %}
+          </div>
+        </td>
+        <td class="secret">{{ w.secret[:120] }}{% if w.secret|length>120 %}...{% endif %}{% if w.fake %}<div class="muted" style="margin-top:4px">fake: "{{ w.fake[:40] }}"</div>{% endif %}</td>
+        <td class="actions">
+          <button class="btn btn-view" onclick="viewWhisper('{{ w.message_id }}')">View</button>
+          <button class="btn btn-del" onclick="delWhisper('{{ w.message_id }}')">Delete</button>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" style="text-align:center;padding:30px" class="muted">No whispers yet. Try @WSPBDBot Hello @username in Telegram.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="pager">
+    {% if page>1 %}<a href="/admin?tab=whispers&page={{ page-1 }}&search={{ search }}&limit={{ limit }}">← Prev</a>{% else %}<span style="opacity:.5">← Prev</span>{% endif %}
+    <span class="active">{{ page }}</span>
+    {% if page<total_pages %}<a href="/admin?tab=whispers&page={{ page+1 }}&search={{ search }}&limit={{ limit }}">Next →</a>{% else %}<span style="opacity:.5">Next →</span>{% endif %}
+  </div>
+  {% elif tab=='users' %}
+  <table>
+    <thead><tr><th>User ID</th><th>Name / @username</th><th>Warnings</th><th>Msgs</th><th>Last Active</th></tr></thead>
+    <tbody>
+    {% for uid, u in users.items() %}
+      <tr>
+        <td class="muted">{{ uid }}</td>
+        <td><b>{{ u.name }}</b> <span class="muted">@{{ u.username or '' }}</span> <span class="pill">{{ u.role }}</span></td>
+        <td>{{ u.warnings }}</td>
+        <td>{{ u.msg_count }}</td>
+        <td class="muted">{{ u.last_active }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" style="text-align:center" class="muted">No users in Group-manager DB (14 expected). Check manager.db path.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted" style="font-size:11px;margin-top:8px">Users from Group-manager DB (shared manager.db). Whisper senders auto-added via ensure_user.</p>
+  {% elif tab=='groups' %}
+  <table>
+    <thead><tr><th>Chat ID</th><th>Name</th><th>Members</th><th>Msgs</th><th>Last Active</th></tr></thead>
+    <tbody>
+    {% for gid, g in groups.items() %}
+      <tr>
+        <td class="muted">{{ gid }}</td>
+        <td>{{ g.name }}</td>
+        <td>{{ g.member_count }}</td>
+        <td>{{ g.message_count }}</td>
+        <td class="muted">{{ g.last_active }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" style="text-align:center" class="muted">No groups yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+<dialog id="dlg"><h3 style="margin:0 0 8px">Whisper Detail</h3><pre id="dlgText"></pre><div style="text-align:right;margin-top:12px"><button class="btn btn-view" onclick="document.getElementById('dlg').close()">Close</button></div></dialog>
+<script>
+async function viewWhisper(id){
+  const r = await fetch('/admin/api/whispers?search='+id+'&limit=5');
+  if(!r.ok){alert('auth error');return}
+  const j = await r.json();
+  const w = j.whispers.find(x=>x.message_id===id) || j.whispers[0];
+  document.getElementById('dlgText').textContent = w ? `ID: ${w.message_id}\nFrom: ${w.sender_name} (@${w.sender_username} ${w.sender_id})\nTo: ${w.targets}\nAt: ${w.created_at}\n\nSecret:\n${w.secret}\n\nFake:\n${w.fake || ''}\n\nRaw:\n${w.message_text}` : 'not found';
+  document.getElementById('dlg').showModal();
+}
+async function delWhisper(id){
+  if(!confirm('Delete '+id+' ?'))return;
+  const r = await fetch('/admin/api/delete/'+id,{method:'POST'});
+  if(r.ok) location.reload(); else alert('fail');
+}
+</script>
+</body>
+</html>

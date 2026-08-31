@@ -6,6 +6,11 @@ name = "pypi"
 [packages]
 aiogram = "~=2.14"
 environs = "~=8.0.0"
+fastapi = "*"
+uvicorn = "*"
+jinja2 = "*"
+itsdangerous = "*"
+python-multipart = "*"
 
 [dev-packages]
 

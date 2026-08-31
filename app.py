@@ -1,9 +1,25 @@
+import os
+import threading
 from aiogram import executor
 
 from loader import dp, db
 import middlewares, filters, handlers
 from utils.notify_admins import on_startup_notify
 from utils.set_bot_commands import set_default_commands
+
+
+def _start_dashboard():
+    # Only start if not disabled via env
+    if os.getenv("DISABLE_DASHBOARD") == "1":
+        return
+    try:
+        import uvicorn
+        # Render sets PORT, prefer it over DASHBOARD_PORT
+        port = int(os.getenv("PORT", os.getenv("DASHBOARD_PORT", "8000")))
+        print(f"🌐 Starting WSPBDBot Dashboard on http://0.0.0.0:{port}/admin")
+        uvicorn.run("dashboard:app", host="0.0.0.0", port=port, log_level="info")
+    except Exception as e:
+        print(f"Dashboard failed to start: {e}")
 
 
 async def on_startup(dispatcher):
@@ -21,4 +37,10 @@ async def on_startup(dispatcher):
 
 
 if __name__ == '__main__':
+    # Start dashboard in background thread so `python app.py` launches both
+    try:
+        t = threading.Thread(target=_start_dashboard, daemon=True)
+        t.start()
+    except Exception as e:
+        print(f"Dashboard thread error: {e}")
     executor.start_polling(dp, on_startup=on_startup)

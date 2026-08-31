@@ -1,51 +1,61 @@
-# WhisperBot
+# WSPBDBot - Whisper Bot (PPBBot Style) 💌
 
-WhisperBot is a Telegram bot that allows you to send secret or confidential messages to selected members of a group without others knowing about it. It works in inline mode, meaning you don't need to add the bot to the group to use it. You just need to mention the bot in the chat, and it will help you send two different messages to the same group: one visible to everyone and the other visible only to selected members.
+**WSPBDBot** - Telegram inline whisper bot like @PPBBot. Send secret messages that only target can read.
 
-This is a useful feature for people who want to share important information with only a few members of a group without revealing it to everyone. With WhisperBot, you can have more control over your conversations and protect your sensitive data.
+Based on sobirjonovme/WhisperBot but upgraded to PPBBot UX + Admin Dashboard.
 
+## Features
+- **PPBBot style:** `@WSPBDBot Hello Kemon acho @delete_ee` - no `||` needed, auto detects @mentions
+- **Old style still works:** `username || secret || fake` (backward compat)
+- **Card UI:** `🔒 Whisper for ...` + `👁️ Read content` + `How to send a whisper?` (Image2 style)
+- **Admin Dashboard:** Web panel at `http://localhost:8000/admin` - see who → whom, search, paginate, view/delete. Only `ADMINS` from .env can bypass whisper privacy + login via ADMIN_PASSWORD. Also `/admin`, `/whispers`, `/whisper <id>`, `/stats` commands in Telegram for admins.
+- **SQLite** (`data/main.db`) with migration from old schema, no Postgres needed.
 
-## How to use
-To use WhisperBot, simply follow these steps:
+## Quick Start
 
-1. Open a group chat where you want to send a secret message.
-
-2. Type `@Whisper_Bot` followed by your target members usernames or IDs and your message, using the following format: <br>
-`@Whisper_Bot username1, username2, user_id3 || message1 || message2`. <br>
-The first message will be visible only to the members you select, while the second message will be visible to everyone in the group.
-
-3. Send the message by clicking on the inline result shown by the bot, and WhisperBot will take care of the rest.
-
-
-## Running the Bot Locally
-
-To run the bot locally, follow these steps:
-
-1. Clone the repository: 
-``` bash 
-git clone https://github.com/sobirjonovme/WhisperBot.git
-```
-
-2. Create a virtual environment and activate it:
-
+1. **Clone & env:**
 ```bash
-python -m venv env
-source env/bin/activate # for Linux/Mac
-.\env\Scripts\activate # for Windows
+git clone <your repo>
+cd WhisperBot
+cp .env.dist .env
+# Edit .env: BOT_TOKEN, ADMINS=your_id, ADMIN_PASSWORD, DASHBOARD_PORT
 ```
 
-3. Install the required packages:
-
-``` bash
+2. **Install:**
+```bash
 pip install -r requirements.txt
+# or pip install aiogram==2.14.3 environs==8.0.0 fastapi uvicorn jinja2 itsdangerous python-multipart
 ```
 
-4. Create a `.env` file based on the `.env.dist` file and add your Telegram Bot token. 
-
-5. Run the bot using the command:
-
-``` bash
-python main.py
+3. **Run Bot:**
+```bash
+python app.py
+# Enable inline mode in @BotFather: /mybots -> WSPBDBot -> Bot Settings -> Inline Mode ON + Inline Feedback 100%
 ```
 
-##### Now you can use the bot with your own Telegram bot token. Enjoy! 
+4. **Run Dashboard (separate terminal):**
+```bash
+python dashboard.py
+# or uvicorn dashboard:app --host 0.0.0.0 --port 8000
+# Open http://localhost:8000/admin  password = ADMIN_PASSWORD
+```
+
+## How to Use (PPBBot style)
+In any chat type:
+```
+@WSPBDBot Hello Kemon acho @delete_ee
+```
+Bot shows `Whisper for delete_ee (@delete_ee)` preview. Tap to send. Group sees `🔒 Whisper for delete_ee. Only they can read` + `Read content` button. Target / sender / admin can see secret via alert; others see decoy ("Haaa" or fake).
+
+Old style: `@WSPBDBot username1, username2 || secret message || fake message`
+
+## Admin
+- Set `ADMINS=123,456` in .env (comma separated Telegram IDs)
+- Web: `ADMIN_PASSWORD` + `/admin/login`
+- Telegram: `/admin` `/whispers` `/whisper <msg_id>` `/stats` (admin only)
+- Disable leaky log: `NOTIFY_ADMINS=0` (default). Old hardcoded 1039835085 removed.
+- Privacy: Add disclaimer in /start - "Admin can audit whispers"
+
+## Deployment
+- `bot.conf` supervisor: `python3 app.py` + dashboard as second program `uvicorn dashboard:app`
+- Keep `data/main.db` backed up, `.env` not committed.

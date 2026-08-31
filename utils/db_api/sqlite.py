@@ -37,10 +37,40 @@ class Database:
             name varchar(255) NOT NULL,
             user_id varchar(20) NOT NULL,
             tg_username varchar(50),
+            targets TEXT,
+            secret TEXT,
+            fake TEXT,
+            chat_id TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (message_id)
             );
 """
-        self.execute(sql, commit=True)
+        try:
+            self.execute(sql, commit=True)
+        except Exception:
+            pass
+        # Migration for existing DB: add missing columns if table already exists
+        for col_def in [
+            ("targets", "TEXT"),
+            ("secret", "TEXT"),
+            ("fake", "TEXT"),
+            ("chat_id", "TEXT"),
+            ("created_at", "TIMESTAMP"),
+        ]:
+            try:
+                self.execute(f"ALTER TABLE Messages ADD COLUMN {col_def[0]} {col_def[1]}", commit=True)
+            except Exception:
+                pass
+        try:
+            self.execute("CREATE INDEX IF NOT EXISTS idx_messages_user_id ON Messages(user_id)", commit=True)
+            self.execute("CREATE INDEX IF NOT EXISTS idx_messages_created_at ON Messages(created_at)", commit=True)
+        except Exception:
+            pass
+        # Ensure existing rows have created_at
+        try:
+            self.execute("UPDATE Messages SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL", commit=True)
+        except Exception:
+            pass
 
     @staticmethod
     def format_args(sql, parameters: dict):
@@ -49,13 +79,13 @@ class Database:
         ])
         return sql, tuple(parameters.values())
 
-    def add_message(self, message_id: str, message_text: str , name: str, user_id: str, tg_username: str = None):
-        # SQL_EXAMPLE = "INSERT INTO Users(id, Name, email) VALUES(1, 'John', 'John@gmail.com')"
-
+    def add_message(self, message_id: str, message_text: str , name: str, user_id: str, tg_username: str = None,
+                  targets: str = None, secret: str = None, fake: str = None, chat_id: str = None):
+        # Extended for WSPBDBot: store parsed targets/secret/fake for dashboard
         sql = """
-        INSERT INTO Messages(message_id, message_text, name, user_id, tg_username) VALUES(?, ?, ?, ?, ?)
+        INSERT INTO Messages(message_id, message_text, name, user_id, tg_username, targets, secret, fake, chat_id) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
-        self.execute(sql, parameters=(message_id, message_text, name, user_id, tg_username), commit=True)
+        self.execute(sql, parameters=(message_id, message_text, name, user_id, tg_username, targets, secret, fake, chat_id), commit=True)
 
     def select_all_messages(self):
         sql = """
@@ -70,15 +100,41 @@ class Database:
 
         return self.execute(sql, parameters=parameters, fetchone=True)
 
+    def get_whispers(self, limit=20, offset=0, search: str = None):
+        # Dashboard: paginated + search by target/secret/sender
+        if search:
+            like = f"%{search}%"
+            sql = """
+            SELECT * FROM Messages WHERE targets LIKE ? OR secret LIKE ? OR message_text LIKE ? OR name LIKE ? OR tg_username LIKE ? OR user_id LIKE ?
+            ORDER BY COALESCE(created_at, '1970-01-01') DESC, rowid DESC LIMIT ? OFFSET ?
+            """
+            return self.execute(sql, parameters=(like, like, like, like, like, like, limit, offset), fetchall=True)
+        sql = "SELECT * FROM Messages ORDER BY COALESCE(created_at, '1970-01-01') DESC, rowid DESC LIMIT ? OFFSET ?"
+        return self.execute(sql, parameters=(limit, offset), fetchall=True)
+
+    def count_whispers(self, search: str = None):
+        if search:
+            like = f"%{search}%"
+            sql = "SELECT COUNT(*) FROM Messages WHERE targets LIKE ? OR secret LIKE ? OR message_text LIKE ? OR name LIKE ? OR tg_username LIKE ? OR user_id LIKE ?"
+            return self.execute(sql, parameters=(like, like, like, like, like, like), fetchone=True)
+        return self.execute("SELECT COUNT(*) FROM Messages;", fetchone=True)
+
     def count_users(self):
         return self.execute("SELECT COUNT(*) FROM Messages;", fetchone=True)
 
     def delete_users(self):
         self.execute("DELETE FROM Messages WHERE TRUE", commit=True)
 
+    def delete_whisper(self, message_id: str):
+        self.execute("DELETE FROM Messages WHERE message_id = ?", parameters=(message_id,), commit=True)
+
 
 def logger(statement):
-    print(f"""
+    # Disabled in production to avoid leaking whisper secrets to stdout
+    # Enable by setting env DEBUG_SQL=1
+    import os
+    if os.getenv("DEBUG_SQL") == "1":
+        print(f"""
 _____________________________________________________        
 Executing: 
 {statement}
