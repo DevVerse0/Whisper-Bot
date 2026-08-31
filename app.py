@@ -37,6 +37,18 @@ async def on_startup(dispatcher):
 
 
 if __name__ == '__main__':
+    # Fix for Render + uvloop + Python 3.11: aiogram 2.14 executor needs event loop in MainThread
+    import asyncio
+    try:
+        # uvloop replaces policy, ensure loop exists
+        try:
+            asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+    except Exception as _e:
+        print(f"Loop init: {_e}")
+
     # Start dashboard in background thread so `python app.py` launches both
     try:
         t = threading.Thread(target=_start_dashboard, daemon=True)
